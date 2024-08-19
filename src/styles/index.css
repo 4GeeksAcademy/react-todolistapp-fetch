@@ -10,3 +10,9 @@
     import 'relative/path/to/stylesheet.scss';
 
 */
+a:hover button{
+    visibility: visible;
+}
+a button{
+    visibility: hidden;
+}
