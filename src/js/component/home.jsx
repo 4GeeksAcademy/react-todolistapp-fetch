@@ -1,132 +1,165 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
-const Home = () => {
-  const [tarea, setTarea] = useState("");
-  const [lista, setLista] = useState([]);
-  const userName = "kevinvillafuerte"; 
+export const Home = () => {
+  const [inputValue, setInputValue] = useState("");
+  const [tasks, setTasks] = useState([]);
+  const username = "kevinvillafuerte";
 
-  const crearUsuario = async () => {
+  //funcion para manejar la respuesta de la API
+  const handleResponse = async (response, action) => {
+    if (!response.ok) {
+      throw new Error(`Error al ${action}`);
+    }
+    return response.json();
+  };
+
+  // Crear un nuevo usuario
+  const createUser = async () => {
     try {
-      const response = await fetch(`https://assets.breatheco.de/apis/fake/todos/users/${userName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify([])
+      await fetch("https://playground.4geeks.com/todo/users", {
+        method: "POST",
+        body: JSON.stringify({ username }),
+        headers: { "Content-Type": "application/json" },
       });
-      const data = await response.json();
-      console.log(data);
+      sincronizar();
     } catch (error) {
-      console.error('Error creando usuario:', error);
+      console.error("Error al crear usuario:", error);
     }
   };
 
-  const obtenerLista = async () => {
+  // Sincronizar tareas
+  const sincronizar = async () => {
     try {
-      const response = await fetch(`https://assets.breatheco.de/apis/fake/todos/todos/${userName}`, {
-        method: 'GET'
-      });
-      const data = await response.json();
-      setLista(data);
+      const response = await fetch(`https://playground.4geeks.com/todo/users/${username}`);
+      const data = await handleResponse(response, "sincronizar tareas");
+      setTasks(data.todos);
     } catch (error) {
-      console.error('Error obteniendo lista:', error);
+      console.error("Error en sincronizar tareas:", error);
     }
   };
 
-  const borrarLista = async () => {
+  //Reactualizar 
+  const getUserAgain = async () => {
     try {
-      const response = await fetch(`https://assets.breatheco.de/apis/fake/todos/users/${userName}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      await fetch(`https://playground.4geeks.com/todo/users/${username}`, {
+        method: "POST",
+        body: JSON.stringify([]),
+        headers: { "Content-Type": "application/json" },
       });
-      const data = await response.json();
-      console.log(data.result);
-      if (data.result === "ok") {
-        setLista([]);
-      }
     } catch (error) {
-      console.error('Error borrando lista:', error);
+      console.error("Error en reiniciar usuario:", error);
     }
   };
 
-  const actualizar = async () => {
+  // Agregar tarea
+  const addTask = async (todo) => {
     try {
-      for (const item of lista) {
-        const response = await fetch(`https://assets.breatheco.de/apis/fake/todos/todos/${item.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(item)
-        });
-        const data = await response.json();
-        console.log(data);
-      }
+      const response = await fetch(`https://playground.4geeks.com/todo/todos/${username}`, {
+        method: "POST",
+        body: JSON.stringify(todo),
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await handleResponse(response, "agregar tarea");
+      setTasks((prevTasks) => [...prevTasks, data]);
     } catch (error) {
-      console.error('Error actualizando lista:', error);
+      console.error("Error al agregar tarea:", error);
+    }
+  };
+
+  // Eliminar tarea
+  const eliminarTask = async (id) => {
+    try {
+      await fetch(`https://playground.4geeks.com/todo/todos/${username}/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error) {
+      console.error("Error al eliminar tarea:", error);
+    }
+  };
+
+  // Limpiar todas las tareas
+  const clearTasks = async () => {
+    try {
+      await fetch(`https://playground.4geeks.com/todo/users/${username}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      setTasks([]);
+      getUserAgain();
+    } catch (error) {
+      console.error("Error al limpiar tareas:", error);
     }
   };
 
   useEffect(() => {
-    crearUsuario();
-    obtenerLista();
+    createUser();
   }, []);
 
-  useEffect(() => {
-    if (lista.length) {
-      actualizar();
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" && inputValue.trim()) {
+      const newTask = { label: inputValue, is_done: false };
+      setInputValue("");
+      addTask(newTask);
+    } else if (event.key === "Enter") {
+      alert("Ingrese algo");
     }
-  }, [lista]);
-
-  const agregarTarea = (e) => {
-    e.preventDefault();
-    setLista((prevLista) => [...prevLista, { label: tarea, done: false }]);
-    setTarea("");
   };
 
-  const borrarTarea = (indexItem) => {
-    setLista((prevState) => prevState.filter((_, index) => index !== indexItem));
+  const handleDeleteAll = () => {
+    if (window.confirm("¿Estás seguro de eliminar todas las task?")) {
+      clearTasks();
+    }
   };
 
   return (
-    <>
-      <div className="card container d-flex bg-light mt-3 md-w50">
-        <h2 className="titulo m-auto p-2">TODO LIST</h2>
-        <div className="card-body">
-          <input
-            type="text"
-            className="input m-1 w-75"
-            value={tarea}
-            id="exampleInput"
-            aria-describedby="inputHelp"
-            onChange={(e) => setTarea(e.target.value)}
-			placeholder="Ingresa algo"
-          />
-          <button type="submit" className="btn btn-primary btn-sm" onClick={agregarTarea}>
-            Agregar
-          </button>
-        </div>
-        <div className="to-do-list d-flex">
+    <React.Fragment>
+      <h1>Todos</h1>
+      <div className="container">
+        <div className="list">
           <ul>
-            {lista.map((item, index) => (
-              <li key={index}>
-                {item.label}
-                <button className="btn" onClick={() => borrarTarea(index)}>
-                  <i className="fas fa-trash-alt" />
+            <li>
+              <input
+                type="text"
+                placeholder="Input Task"
+                onChange={(event) => setInputValue(event.target.value)}
+                value={inputValue}
+                onKeyDown={handleKeyDown}
+              />
+            </li>
+            {!tasks.length && (
+              <li>
+                <strong>No hay tareas, agrega una nueva</strong>
+              </li>
+            )}
+            {tasks.map((task) => (
+              <li key={task.id} className="containerLi">
+                {task.label}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTasks((prevTasks) => prevTasks.filter((t) => t.id !== task.id));
+                    eliminarTask(task.id);
+                  }}
+                >
+                  X
                 </button>
               </li>
             ))}
           </ul>
         </div>
-        <div className="delete-lista d-flex justify-content-center mt-3 md-w50 mb-2">
-          <button type="submit" className="btn btn-danger btn-sm" onClick={borrarLista}>
-            Delete list
-          </button>
-        </div>
+        <p>{tasks.length + " item left"}</p>
       </div>
-    </>
+      <div className="stick"></div>
+      <div className="stick2"></div>
+      <button
+        className="buttonDeleteAll btn btn-danger"
+        type="button"
+        onClick={handleDeleteAll}
+      >
+        Delete All Task
+      </button>
+    </React.Fragment>
   );
 };
 
